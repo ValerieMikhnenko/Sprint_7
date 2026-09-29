@@ -1,6 +1,5 @@
 package org.example.scooter;
 
-import io.restassured.RestAssured;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -10,11 +9,12 @@ import java.util.stream.Stream;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 
-class CourierLoginTest {
+class CourierLoginTest extends BaseTest {
 
-    private static final String BASE_URL =
-            "https://qa-scooter.education-services.ru";
+    private int courierId;
 
     static Stream<String> invalidLoginFields() {
         return Stream.of(
@@ -22,37 +22,48 @@ class CourierLoginTest {
         );
     }
 
-    @Test
-    void courierCanLogin() {
-
-        RestAssured.baseURI = BASE_URL;
-
-        String login = "test_valeria_login";
-        String password = "123456";
-        String firstName = "Valeria";
-
-        // Создаём курьера
+    private void createCourier(Courier courier) {
         given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\",\"firstName\":\"%s\"}",
-                        login,
-                        password,
-                        firstName
-                ))
+                .spec(REQUEST_SPECIFICATION)
+                .body(courier)
                 .when()
                 .post("/api/v1/courier")
                 .then()
                 .statusCode(201);
+    }
+
+    @AfterEach
+    void deleteCourier() {
+        if (courierId != 0) {
+            given()
+                    .spec(REQUEST_SPECIFICATION)
+                    .when()
+                    .delete("/api/v1/courier/" + courierId)
+                    .then()
+                    .statusCode(200);
+        }
+    }
+
+    @Test
+    @DisplayName("Курьер может авторизоваться")
+    void courierCanLogin() {
+
+        Courier courier = new Courier(
+                "test_valeria_login_20260928",
+                "123456",
+                "Valeria"
+        );
+
+        // Создаём курьера
+        createCourier(courier);
 
         // Авторизуемся
-        int courierId = given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\"}",
-                        login,
-                        password
-                ))
+        CourierLoginRequest loginRequest =
+                new CourierLoginRequest(courier.getLogin(), courier.getPassword());
+
+        courierId = given()
+                .spec(REQUEST_SPECIFICATION)
+                .body(loginRequest)
                 .when()
                 .post("/api/v1/courier/login")
                 .then()
@@ -61,22 +72,16 @@ class CourierLoginTest {
                 .extract()
                 .path("id");
 
-        // Удаляем курьера
-        given()
-                .when()
-                .delete("/api/v1/courier/" + courierId)
-                .then()
-                .statusCode(200);
+
     }
 
     @Test
+    @DisplayName("Нельзя войти с несуществующим логином")
     void cannotLoginWithWrongLogin() {
 
-        RestAssured.baseURI = BASE_URL;
-
         given()
-                .header("Content-type", "application/json")
-                .body("{\"login\":\"test_valeria_wrong\",\"password\":\"123456\"}")
+                .spec(REQUEST_SPECIFICATION)
+                .body(new CourierLoginRequest("test_valeria_wrong", "123456"))
                 .when()
                 .post("/api/v1/courier/login")
                 .then()
@@ -85,49 +90,40 @@ class CourierLoginTest {
     }
 
     @Test
+    @DisplayName("Нельзя войти с неправильным паролем")
     void cannotLoginWithWrongPassword() {
 
-        RestAssured.baseURI = BASE_URL;
-
-        String login = "test_valeria_wrong_password";
-        String password = "123456";
-        String firstName = "Valeria";
+        Courier courier = new Courier(
+                "test_valeria_wrong_password_20260928",
+                "123456",
+                "Valeria"
+        );
 
         // Создаём курьера
-        given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\",\"firstName\":\"%s\"}",
-                        login,
-                        password,
-                        firstName
-                ))
-                .when()
-                .post("/api/v1/courier")
-                .then()
-                .statusCode(201);
+        createCourier(courier);
 
         // Пытаемся войти с неправильным паролем
+        CourierLoginRequest loginRequest =
+                new CourierLoginRequest(courier.getLogin(), "wrong_password");
+
         given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"wrong_password\"}",
-                        login
-                ))
+                .spec(REQUEST_SPECIFICATION)
+                .body(loginRequest)
                 .when()
                 .post("/api/v1/courier/login")
                 .then()
                 .statusCode(404)
                 .body("code", equalTo(404));
 
-        // Получаем ID курьера
-        int courierId = given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\"}",
-                        login,
-                        password
-                ))
+// Получаем ID курьера
+        loginRequest = new CourierLoginRequest(
+                courier.getLogin(),
+                courier.getPassword()
+        );
+
+        courierId = given()
+                .spec(REQUEST_SPECIFICATION)
+                .body(loginRequest)
                 .when()
                 .post("/api/v1/courier/login")
                 .then()
@@ -135,22 +131,16 @@ class CourierLoginTest {
                 .extract()
                 .path("id");
 
-        // Удаляем курьера
-        given()
-                .when()
-                .delete("/api/v1/courier/" + courierId)
-                .then()
-                .statusCode(200);
+
     }
 
     @ParameterizedTest
     @MethodSource("invalidLoginFields")
+    @DisplayName("Нельзя войти без обязательных полей")
     void cannotLoginWithoutRequiredFields(String requestBody) {
 
-        RestAssured.baseURI = BASE_URL;
-
         given()
-                .header("Content-type", "application/json")
+                .spec(REQUEST_SPECIFICATION)
                 .body(requestBody)
                 .when()
                 .post("/api/v1/courier/login")

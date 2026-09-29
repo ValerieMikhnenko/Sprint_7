@@ -1,17 +1,18 @@
 package org.example.scooter;
 
-import io.restassured.RestAssured;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.util.stream.Stream;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
+import org.junit.jupiter.api.DisplayName;
 
-class CourierCreateTest {
+class CourierCreateTest extends BaseTest {
 
-    private static final String BASE_URL =
-            "https://qa-scooter.education-services.ru";
+    private int courierId;
+
     static Stream<String> invalidCourierData() {
         return Stream.of(
                 "{\"password\":\"123456\",\"firstName\":\"Valeria\"}",
@@ -20,37 +21,50 @@ class CourierCreateTest {
         );
     }
 
-    @Test
-    void createCourier() {
-
-        RestAssured.baseURI = BASE_URL;
-
-        String login = "test_valeria_create";
-        String password = "123456";
-        String firstName = "Valeria";
-
-        // Создаём курьера
+    private void createCourier(Courier courier) {
         given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\",\"firstName\":\"%s\"}",
-                        login,
-                        password,
-                        firstName
-                ))
+                .spec(REQUEST_SPECIFICATION)
+                .body(courier)
                 .when()
                 .post("/api/v1/courier")
                 .then()
                 .statusCode(201)
                 .body("ok", equalTo(true));
+    }
+
+    @AfterEach
+    void deleteCourier() {
+        if (courierId != 0) {
+            given()
+                    .spec(REQUEST_SPECIFICATION)
+                    .when()
+                    .delete("/api/v1/courier/" + courierId)
+                    .then()
+                    .statusCode(200)
+                    .body("ok", equalTo(true));
+        }
+    }
+
+    @Test
+    @DisplayName("Создание нового курьера")
+    void createCourier() {
+
+        Courier courier = new Courier(
+                "test_valeria_create",
+                "123456",
+                "Valeria"
+        );
+
+        // Создаём курьера
+        createCourier(courier);
 
         // Получаем ID созданного курьера
-        int courierId = given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\"}",
-                        login,
-                        password
+        // Получаем ID созданного курьера
+        courierId = given()
+                .spec(REQUEST_SPECIFICATION)
+                .body(new CourierLoginRequest(
+                        courier.getLogin(),
+                        courier.getPassword()
                 ))
                 .when()
                 .post("/api/v1/courier/login")
@@ -59,84 +73,53 @@ class CourierCreateTest {
                 .extract()
                 .path("id");
 
-        // Удаляем курьера
-        given()
-                .when()
-                .delete("/api/v1/courier/" + courierId)
-                .then()
-                .statusCode(200)
-                .body("ok", equalTo(true));
+
     }
     @Test
+    @DisplayName("Нельзя создать двух курьеров с одинаковым логином")
     void cannotCreateDuplicateCourier() {
 
-        RestAssured.baseURI = BASE_URL;
-
-        String login = "test_valeria_duplicate";
-        String password = "123456";
-        String firstName = "Valeria";
+        Courier courier = new Courier(
+                "test_valeria_duplicate_20260929",
+                "123456",
+                "Valeria"
+        );
 
         // Создаём курьера
-        given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\",\"firstName\":\"%s\"}",
-                        login,
-                        password,
-                        firstName
+        createCourier(courier);
+
+        // Получаем ID созданного курьера
+        courierId = given()
+                .spec(REQUEST_SPECIFICATION)
+                .body(new CourierLoginRequest(
+                        courier.getLogin(),
+                        courier.getPassword()
                 ))
                 .when()
-                .post("/api/v1/courier")
+                .post("/api/v1/courier/login")
                 .then()
-                .statusCode(201)
-                .body("ok", equalTo(true));
+                .statusCode(200)
+                .extract()
+                .path("id");
 
         // Пытаемся создать курьера с тем же логином
         given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\",\"firstName\":\"%s\"}",
-                        login,
-                        password,
-                        firstName
-                ))
+                .spec(REQUEST_SPECIFICATION)
+                .body(courier)
                 .when()
                 .post("/api/v1/courier")
                 .then()
                 .statusCode(409)
                 .body("code", equalTo(409));
 
-        // Находим ID курьера для удаления
-        int courierId = given()
-                .header("Content-type", "application/json")
-                .body(String.format(
-                        "{\"login\":\"%s\",\"password\":\"%s\"}",
-                        login,
-                        password
-                ))
-                .when()
-                .post("/api/v1/courier/login")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("id");
-
-        // Удаляем созданного курьера
-        given()
-                .when()
-                .delete("/api/v1/courier/" + courierId)
-                .then()
-                .statusCode(200)
-                .body("ok", equalTo(true));
     }
     @ParameterizedTest
     @MethodSource("invalidCourierData")
+    @DisplayName("Регистрация с некорректными данными")
     void cannotCreateCourierWithoutRequiredFields(String requestBody) {
 
-        RestAssured.baseURI = BASE_URL;
-
         given()
-                .header("Content-type", "application/json")
+                .spec(REQUEST_SPECIFICATION)
                 .body(requestBody)
                 .when()
                 .post("/api/v1/courier")

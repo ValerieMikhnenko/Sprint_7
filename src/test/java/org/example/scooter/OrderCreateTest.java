@@ -1,19 +1,18 @@
 package org.example.scooter;
 
-import io.restassured.RestAssured;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.notNullValue;
+import org.junit.jupiter.api.DisplayName;
 
-class OrderCreateTest {
-
-    private static final String BASE_URL =
-            "https://qa-scooter.education-services.ru";
+class OrderCreateTest extends BaseTest {
 
     static Stream<String> orderColors() {
         return Stream.of(
@@ -26,36 +25,28 @@ class OrderCreateTest {
 
     @ParameterizedTest
     @MethodSource("orderColors")
+    @DisplayName("Создание заказа")
     void createOrder(String colors) {
 
-        RestAssured.baseURI = BASE_URL;
+        List<String> colorList = colors.isEmpty()
+                ? Collections.emptyList()
+                : Arrays.asList(colors.split(","));
 
-        String requestBody = "{"
-                + "\"firstName\":\"Valeria\","
-                + "\"lastName\":\"Test\","
-                + "\"address\":\"Москва, ул. Тестовая, 1\","
-                + "\"metroStation\":1,"
-                + "\"phone\":\"+79991234567\","
-                + "\"rentTime\":1,"
-                + "\"deliveryDate\":\"2026-09-25\","
-                + "\"comment\":\"Test order\""
-                + "}";
-
-        if (!colors.isEmpty()) {
-            String[] colorArray = colors.split(",");
-
-            requestBody = requestBody.replace(
-                    "}",
-                    String.format(
-                            ", \"color\": [\"%s\"]}",
-                            String.join("\", \"", colorArray)
-                    )
-            );
-        }
+        OrderCreateRequest order = new OrderCreateRequest(
+                "Valeria",
+                "Test",
+                "Москва, ул. Тестовая, 1",
+                1,
+                "+79991234567",
+                1,
+                "2026-09-25",
+                "Test order",
+                colorList
+        );
 
         given()
-                .header("Content-type", "application/json")
-                .body(requestBody)
+                .spec(REQUEST_SPECIFICATION)
+                .body(order)
                 .when()
                 .post("/api/v1/orders")
                 .then()

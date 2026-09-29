@@ -1,21 +1,19 @@
 package org.example.scooter;
 
-import io.restassured.RestAssured;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.notNullValue;
 
-class OrderListTest {
-
-    private static final String BASE_URL =
-            "https://qa-scooter.education-services.ru";
+class OrderListTest extends BaseTest {
 
     @Test
+    @DisplayName("Получить список заказов")
     void getOrderList() {
-        RestAssured.baseURI = BASE_URL;
 
         given()
+                .spec(REQUEST_SPECIFICATION)
                 .when()
                 .get("/api/v1/orders")
                 .then()
