@@ -1,18 +1,20 @@
 package org.example.scooter;
 
+import io.restassured.response.Response;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 
 class CourierLoginTest extends BaseTest {
+
+    private final CourierClient courierClient = new CourierClient();
 
     private int courierId;
 
@@ -22,23 +24,10 @@ class CourierLoginTest extends BaseTest {
         );
     }
 
-    private void createCourier(Courier courier) {
-        given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(courier)
-                .when()
-                .post("/api/v1/courier")
-                .then()
-                .statusCode(201);
-    }
-
     @AfterEach
     void deleteCourier() {
         if (courierId != 0) {
-            given()
-                    .spec(REQUEST_SPECIFICATION)
-                    .when()
-                    .delete("/api/v1/courier/" + courierId)
+            courierClient.deleteCourier(courierId)
                     .then()
                     .statusCode(200);
         }
@@ -54,37 +43,32 @@ class CourierLoginTest extends BaseTest {
                 "Valeria"
         );
 
-        // Создаём курьера
-        createCourier(courier);
+        Response createResponse = courierClient.createCourier(courier);
 
-        // Авторизуемся
+        createResponse.then()
+                .statusCode(201);
+
         CourierLoginRequest loginRequest =
                 new CourierLoginRequest(courier.getLogin(), courier.getPassword());
 
-        courierId = given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(loginRequest)
-                .when()
-                .post("/api/v1/courier/login")
-                .then()
+        Response loginResponse = courierClient.loginCourier(loginRequest);
+
+        courierId = loginResponse.then()
                 .statusCode(200)
                 .body("id", notNullValue())
                 .extract()
                 .path("id");
-
-
     }
 
     @Test
     @DisplayName("Нельзя войти с несуществующим логином")
     void cannotLoginWithWrongLogin() {
 
-        given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(new CourierLoginRequest("test_valeria_wrong", "123456"))
-                .when()
-                .post("/api/v1/courier/login")
-                .then()
+        Response response = courierClient.loginCourier(
+                new CourierLoginRequest("test_valeria_wrong", "123456")
+        );
+
+        response.then()
                 .statusCode(404)
                 .body("code", equalTo(404));
     }
@@ -99,39 +83,31 @@ class CourierLoginTest extends BaseTest {
                 "Valeria"
         );
 
-        // Создаём курьера
-        createCourier(courier);
+        Response createResponse = courierClient.createCourier(courier);
 
-        // Пытаемся войти с неправильным паролем
+        createResponse.then()
+                .statusCode(201);
+
         CourierLoginRequest loginRequest =
                 new CourierLoginRequest(courier.getLogin(), "wrong_password");
 
-        given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(loginRequest)
-                .when()
-                .post("/api/v1/courier/login")
-                .then()
+        Response wrongPasswordResponse = courierClient.loginCourier(loginRequest);
+
+        wrongPasswordResponse.then()
                 .statusCode(404)
                 .body("code", equalTo(404));
 
-// Получаем ID курьера
         loginRequest = new CourierLoginRequest(
                 courier.getLogin(),
                 courier.getPassword()
         );
 
-        courierId = given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(loginRequest)
-                .when()
-                .post("/api/v1/courier/login")
-                .then()
+        Response correctLoginResponse = courierClient.loginCourier(loginRequest);
+
+        courierId = correctLoginResponse.then()
                 .statusCode(200)
                 .extract()
                 .path("id");
-
-
     }
 
     @ParameterizedTest
@@ -139,12 +115,9 @@ class CourierLoginTest extends BaseTest {
     @DisplayName("Нельзя войти без обязательных полей")
     void cannotLoginWithoutRequiredFields(String requestBody) {
 
-        given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(requestBody)
-                .when()
-                .post("/api/v1/courier/login")
-                .then()
+        Response response = courierClient.loginCourier(requestBody);
+
+        response.then()
                 .statusCode(400)
                 .body("code", equalTo(400));
     }
