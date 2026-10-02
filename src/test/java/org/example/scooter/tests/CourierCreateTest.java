@@ -1,5 +1,8 @@
-package org.example.scooter;
+package org.example.scooter.tests;
 
+import org.example.scooter.client.CourierClient;
+import org.example.scooter.pojo.Courier;
+import org.example.scooter.pojo.CourierLoginRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

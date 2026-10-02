@@ -1,6 +1,7 @@
-package org.example.scooter;
+package org.example.scooter.tests;
 
 import io.restassured.response.Response;
+import org.example.scooter.client.OrderClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

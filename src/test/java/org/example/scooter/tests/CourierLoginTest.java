@@ -1,6 +1,9 @@
-package org.example.scooter;
+package org.example.scooter.tests;
 
 import io.restassured.response.Response;
+import org.example.scooter.client.CourierClient;
+import org.example.scooter.pojo.Courier;
+import org.example.scooter.pojo.CourierLoginRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
