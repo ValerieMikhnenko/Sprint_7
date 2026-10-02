@@ -1,15 +1,20 @@
-package org.example.scooter;
+package org.example.scooter.tests;
 
+import org.example.scooter.client.CourierClient;
+import org.example.scooter.pojo.Courier;
+import org.example.scooter.pojo.CourierLoginRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.util.stream.Stream;
-import static io.restassured.RestAssured.given;
+import io.restassured.response.Response;
 import static org.hamcrest.Matchers.equalTo;
 import org.junit.jupiter.api.DisplayName;
 
 class CourierCreateTest extends BaseTest {
+
+    private final CourierClient courierClient = new CourierClient();
 
     private int courierId;
 
@@ -21,24 +26,10 @@ class CourierCreateTest extends BaseTest {
         );
     }
 
-    private void createCourier(Courier courier) {
-        given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(courier)
-                .when()
-                .post("/api/v1/courier")
-                .then()
-                .statusCode(201)
-                .body("ok", equalTo(true));
-    }
-
     @AfterEach
     void deleteCourier() {
         if (courierId != 0) {
-            given()
-                    .spec(REQUEST_SPECIFICATION)
-                    .when()
-                    .delete("/api/v1/courier/" + courierId)
+            courierClient.deleteCourier(courierId)
                     .then()
                     .statusCode(200)
                     .body("ok", equalTo(true));
@@ -56,19 +47,21 @@ class CourierCreateTest extends BaseTest {
         );
 
         // Создаём курьера
-        createCourier(courier);
+        Response createResponse = courierClient.createCourier(courier);
+
+        createResponse.then()
+                .statusCode(201)
+                .body("ok", equalTo(true));
 
         // Получаем ID созданного курьера
-        // Получаем ID созданного курьера
-        courierId = given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(new CourierLoginRequest(
+        Response loginResponse = courierClient.loginCourier(
+                new CourierLoginRequest(
                         courier.getLogin(),
                         courier.getPassword()
-                ))
-                .when()
-                .post("/api/v1/courier/login")
-                .then()
+                )
+        );
+
+        courierId = loginResponse.then()
                 .statusCode(200)
                 .extract()
                 .path("id");
@@ -86,29 +79,29 @@ class CourierCreateTest extends BaseTest {
         );
 
         // Создаём курьера
-        createCourier(courier);
+        Response createResponse = courierClient.createCourier(courier);
+
+        createResponse.then()
+                .statusCode(201)
+                .body("ok", equalTo(true));
 
         // Получаем ID созданного курьера
-        courierId = given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(new CourierLoginRequest(
+        Response loginResponse = courierClient.loginCourier(
+                new CourierLoginRequest(
                         courier.getLogin(),
                         courier.getPassword()
-                ))
-                .when()
-                .post("/api/v1/courier/login")
-                .then()
+                )
+        );
+
+        courierId = loginResponse.then()
                 .statusCode(200)
                 .extract()
                 .path("id");
 
         // Пытаемся создать курьера с тем же логином
-        given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(courier)
-                .when()
-                .post("/api/v1/courier")
-                .then()
+        Response duplicateResponse = courierClient.createCourier(courier);
+
+        duplicateResponse.then()
                 .statusCode(409)
                 .body("code", equalTo(409));
 
@@ -118,12 +111,9 @@ class CourierCreateTest extends BaseTest {
     @DisplayName("Регистрация с некорректными данными")
     void cannotCreateCourierWithoutRequiredFields(String requestBody) {
 
-        given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(requestBody)
-                .when()
-                .post("/api/v1/courier")
-                .then()
+        Response response = courierClient.createCourier(requestBody);
+
+        response.then()
                 .statusCode(400)
                 .body("code", equalTo(400));
     }

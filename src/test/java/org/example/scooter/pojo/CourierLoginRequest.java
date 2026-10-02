@@ -1,15 +1,13 @@
-package org.example.scooter;
+package org.example.scooter.pojo;
 
-public class Courier {
+public class CourierLoginRequest {
 
     private final String login;
     private final String password;
-    private final String firstName;
 
-    public Courier(String login, String password, String firstName) {
+    public CourierLoginRequest(String login, String password) {
         this.login = login;
         this.password = password;
-        this.firstName = firstName;
     }
 
     public String getLogin() {
@@ -18,9 +16,5 @@ public class Courier {
 
     public String getPassword() {
         return password;
-    }
-
-    public String getFirstName() {
-        return firstName;
     }
 }

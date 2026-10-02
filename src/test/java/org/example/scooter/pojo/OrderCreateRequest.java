@@ -1,4 +1,4 @@
-package org.example.scooter;
+package org.example.scooter.pojo;
 
 import java.util.List;
 

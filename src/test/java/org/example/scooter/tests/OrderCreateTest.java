@@ -1,5 +1,8 @@
-package org.example.scooter;
+package org.example.scooter.tests;
 
+import io.restassured.response.Response;
+import org.example.scooter.client.OrderClient;
+import org.example.scooter.pojo.OrderCreateRequest;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -8,11 +11,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.notNullValue;
 import org.junit.jupiter.api.DisplayName;
 
 class OrderCreateTest extends BaseTest {
+
+    private final OrderClient orderClient = new OrderClient();
 
     static Stream<String> orderColors() {
         return Stream.of(
@@ -44,12 +48,9 @@ class OrderCreateTest extends BaseTest {
                 colorList
         );
 
-        given()
-                .spec(REQUEST_SPECIFICATION)
-                .body(order)
-                .when()
-                .post("/api/v1/orders")
-                .then()
+        Response response = orderClient.createOrder(order);
+
+        response.then()
                 .statusCode(201)
                 .body("track", notNullValue());
     }
